@@ -18,6 +18,7 @@ export default function PostPage() {
   const [morePosts, setMorePosts] = useState<NavPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -27,7 +28,12 @@ export default function PostPage() {
 
   const fetchPost = async (slug: string) => {
     try {
-      setLoading(true);
+      // Only show loading on initial load, not during navigation
+      if (!post) {
+        setLoading(true);
+      } else {
+        setIsNavigating(true);
+      }
       
       // Fetch the post
       const { data: postData, error: postError } = await supabase
@@ -64,10 +70,11 @@ export default function PostPage() {
       setError('An error occurred while fetching the post');
     } finally {
       setLoading(false);
+      setIsNavigating(false);
     }
   };
 
-  if (loading) {
+  if (loading && !post) {
     return <div className='flex items-center justify-center p-8'>Loading post...</div>;
   }
 
@@ -87,13 +94,21 @@ export default function PostPage() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-  <style>html,body{margin:0;padding:0;overflow:visible}</style>
+  <style>
+    html,body{margin:0;padding:0;overflow:hidden;height:100vh;width:100%}
+    #p5-container{height:100vh;width:100%;overflow:hidden}
+    /* Hide scrollbars in iframe document */
+    ::-webkit-scrollbar{display:none}
+    body{ -ms-overflow-style:none; scrollbar-width:none }
+    canvas{display:block;max-width:100%;max-height:100vh}
+  </style>
 </head>
-<body>
+<body id="p5-container">
   <script>
     ${post.js_content || ''}
     function postResize(){
       const height = Math.max(
+        window.innerHeight,
         document.body.scrollHeight,
         document.body.offsetHeight,
         document.documentElement.scrollHeight,
@@ -143,10 +158,11 @@ export default function PostPage() {
 </html>`;
 
   return (
-    <div className='min-h-screen bg-white'>
-      <div className='mx-auto w-full max-w-7xl p-4'>
-        <div className='mb-6 flex items-center justify-between gap-4'>
-          <Link to='/' className='text-sm text-blue-600 hover:underline'>
+    <div className='min-h-screen w-screen bg-white m-0 p-0'>
+      <div className='w-screen'>
+        {/* Top Nav - Fixed */}
+        <div className='mb-6 flex items-center justify-between gap-4 fixed top-0 left-0 w-full z-30 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-4 px-6 border-b border-gray-200'>
+          <Link to='/' className='text-xs text-blue-600 hover:underline'>
             ← Back to home
           </Link>
           {morePosts && morePosts.length > 0 && (
@@ -155,36 +171,41 @@ export default function PostPage() {
                 <Link
                   key={p.slug}
                   to={`/p/${p.slug}`}
-                  className={`text-sm ${p.slug === slug ? 'font-semibold text-neutral-900' : 'text-neutral-600 hover:text-neutral-900'}`}>
+                  className={`text-xs transition-all duration-200 ${p.slug === slug ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-900'}`}>
                   {p.title}
                 </Link>
               ))}
             </nav>
           )}
         </div>
-        <h1 className='mb-2 text-2xl font-semibold'>{post.title}</h1>
-        {post.excerpt && <p className='mb-6 text-neutral-600'>{post.excerpt}</p>}
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
+  {/* Add padding-top to avoid content under nav */}
+        <div style={{ paddingTop: '64px' }} className='grid grid-cols-1 md:grid-cols-3'>
           {/* Visualization Column - 1/3 */}
           {post.js_content && (
-            <div className='rounded border border-neutral-200 md:col-span-1'>
+            <div className='hidden md:block fixed left-0 top-[80px] h-[calc(100vh-80px)] w-1/3 z-20 bg-white transition-opacity duration-300' style={{ opacity: isNavigating ? 0.5 : 1 }}>
               <IframeAutoResize
                 frameId={`viz-${post.id}`}
                 srcDoc={vizHtml}
                 title={`${post.title} - Visualization`}
-                className='w-full border-0'
+                className='w-full h-full border-0'
+                initialHeight='100%'
+                lockToContainer
               />
             </div>
           )}
+          {/* Spacer for visualization on desktop */}
+          {post.js_content && <div className='md:col-span-1'></div>}
           {/* Content Column - 2/3 */}
           <div
-            className={`rounded border border-neutral-200 ${post.js_content ? 'md:col-span-2' : 'md:col-span-3'}`}>
-            <IframeAutoResize
-              frameId={`content-${post.id}`}
-              srcDoc={contentHtml}
-              title={post.title}
-              className='w-full border-0'
-            />
+            className={`${post.js_content ? 'md:col-span-2' : 'md:col-span-3'} transition-opacity duration-300`} style={{ opacity: isNavigating ? 0.5 : 1 }}>
+            <div className='max-w-[780px]'>
+              <IframeAutoResize
+                frameId={`content-${post.id}`}
+                srcDoc={contentHtml}
+                title={post.title}
+                className='w-full border-0'
+              />
+            </div>
           </div>
         </div>
       </div>
