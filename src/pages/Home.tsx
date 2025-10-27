@@ -130,11 +130,11 @@ export default function Home() {
 
   return (
     <div className='w-screen bg-white m-0 p-0'>
-      <div className='grid grid-cols-12 w-screen m-0 p-0'>
+      <div className='grid grid-cols-12 w-screen m-0 p-0 gap-0 border border-gray-300'>
         {posts.map((post) => (
           <div 
             key={post.id} 
-            className={`${getColSpanClass(post.html_excerpt)} relative overflow-hidden m-0 p-0`}
+            className={`${getColSpanClass(post.html_excerpt)} relative overflow-hidden m-0 p-0 -ml-px -mt-px border border-gray-300`}
           >
             <iframe
               id={`iframe-${post.id}`}
